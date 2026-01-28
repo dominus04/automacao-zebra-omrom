@@ -1,3 +1,22 @@
+import win32gui
+import win32con
+import win32com.client
+
+def window_enumeration_handler(hwnd, results_list):
+    if win32gui.IsWindowVisible(hwnd):
+        window_title = win32gui.GetWindowText(hwnd)
+        #List all Cx-Programmer Screens
+        if "CX-Programmer" in window_title:
+            results_list.append((hwnd, window_title))
+    return True
+
+
+def get_top_level_windows():
+    windows = []
+    win32gui.EnumWindows(window_enumeration_handler, windows)
+    return windows
+
+
 def read_layout():
     print("Cole o layout da etiqueta e aperte CTRL-D:")
 
@@ -14,6 +33,7 @@ def read_layout():
         else:
             layout += line
             i = 1
+
     return layout.encode().hex()
 
 
@@ -21,22 +41,32 @@ def read_varname():
     return input("Digite o nome da variavel: ")
 
 
-def read_window():
-    return input("Digite o nome da janela com todos os detalhes: ")
+def get_window():
+    windows_list = get_top_level_windows()
+    for i in range(windows_list.__len__()):
+        print(f"{i} - {windows_list[i][1]}")
+
+    window_number = input("Digite o número da janela do programa: ")
+    main_window = win32gui.FindWindow(None, windows_list[int(window_number)][1])
+    return win32gui.GetWindow(main_window, win32con.GW_CHILD)
 
 
-def set_layout(layout, var_name, window_name, Key=None):
-    import win32gui
-    import win32con
+def set_layout(layout, var_name, child_window):
     from time import sleep
     from pynput.keyboard import Key, Controller
 
-    main_window = win32gui.FindWindow(None, window_name)
-    child_window = win32gui.GetWindow(main_window, win32con.GW_CHILD)
-    win32gui.SetForegroundWindow(child_window)
-
+    shell = win32com.client.Dispatch("WScript.Shell")
     keyboard = Controller()
-    var_sub = "?".encode().hex()
+    shell.SendKeys('%')
+
+    try:
+        win32gui.ShowWindow(int(child_window), win32con.SW_RESTORE)
+        win32gui.SetForegroundWindow(child_window)
+        sleep(1)
+    except Exception as e:
+        print(f"Erro ao focar: {e}")
+        return
+
     cnt_var = 0
 
     for i in range(0, len(layout), 4):
@@ -46,8 +76,6 @@ def set_layout(layout, var_name, window_name, Key=None):
             hex2 = str(layout[i + 1])
             hex3 = str(layout[i + 2])
             hex4 = str(layout[i + 3])
-            char1 = hex1 + hex2
-            char2 = hex3 + hex4
 
             script = str(cnt_var)
             keyboard.press("m")
@@ -74,7 +102,8 @@ def set_layout(layout, var_name, window_name, Key=None):
                 keyboard.press(script[n])
             keyboard.press("]")
             keyboard.press(Key.enter)
-            keyboard.press(Key.end)
+            sleep(0.3)
+            keyboard.press(Key.enter)
             if cnt_var % 79 == 0 and cnt_var != 0:
                 keyboard.press(Key.down)
             sleep(0.5)
@@ -110,6 +139,7 @@ def set_layout(layout, var_name, window_name, Key=None):
             sleep(0.5)
             cnt_var += 1
 
-
+        except Exception as e:
+            print(f"Erro: {e}")
 
 
